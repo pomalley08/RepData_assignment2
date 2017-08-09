@@ -1,0 +1,59 @@
+---
+title: "Briefly summarize analysis"
+author: "Patrick J. O'Malley"
+date: "August 8, 2017"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+describes and summarizes your analysis in at most 10 complete sentences.
+
+## Data Processing
+
+Begin by downloading the raw .csv file from its source on the internet
+
+```{r download_data, cache=TRUE}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(url, "stormdata.csv.bz2")
+```
+
+Load the data into R
+
+```{r load_data, cache=TRUE}
+storm <- read.csv("stormdata.csv.bz2")
+```
+
+View summaries of the data
+
+```{r}
+dim(storm) # 902,297 x 37
+str(storm)
+```
+
+## Exploratory Analysis
+
+View top events with respect to harm to population health
+
+```{r worst_events}
+library(dplyr)
+worst_events <- storm %>% 
+        group_by(EVTYPE) %>% 
+        summarise(avg_deaths = mean(FATALITIES, na.rm = TRUE), 
+                  max_deaths = max(FATALITIES, na.rm = TRUE),
+                  n = n()) %>%
+        arrange(desc(max_deaths)) %>% 
+        slice(1:10)
+worst_events
+```
+
+## Results
+
+
