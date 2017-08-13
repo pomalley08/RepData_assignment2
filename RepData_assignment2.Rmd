@@ -1,5 +1,5 @@
 ---
-title: "Briefly summarize analysis"
+title: "Tornadoes are Greatest Risk to Public Health While Flooding Carries the Highest Economic Risk"
 author: "Patrick J. O'Malley"
 date: "August 8, 2017"
 output: 
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Synopsis
 
-describes and summarizes your analysis in at most 10 complete sentences.
+The purpose of this anlaysis is to determine which storm events in the US are most harmful with respect both to population health and economically. The initial hypothesis is that smaller but more intense events like tornadoes will have more effects on health, while larger events like hurricanes will have a greater economic effect. The data used to investigate this subject comes from the NOAA Storm Database, and contains events from the years 1950-2011. These data show that for both health and economic effects, the storm events that do the highest average damage (heat and hurricanes respectively) are overshadowed by events that have much higher number of occurances (tornadoes and floods) when looking at total damage.
 
 ## Data Processing
 
@@ -33,27 +33,259 @@ storm <- read.csv("stormdata.csv.bz2")
 
 View summaries of the data
 
-```{r}
+```{r summary}
 dim(storm) # 902,297 x 37
 str(storm)
 ```
 
-## Exploratory Analysis
+The date column is loaded as a factor so it will be converted to a date object to allow calculations
 
-View top events with respect to harm to population health
+```{r convert-date-column, cache=TRUE}
+library(lubridate)
+storm$BGN_DATE <- as.character(storm$BGN_DATE)
+storm$BGN_DATE <- mdy_hms(storm$BGN_DATE)
+class(storm$BGN_DATE)
+```
+
+Many events are split into serveral categories and should be combined into a single event category to get an accurate account of its overall effects.
+
+```{r combine-events, cache=TRUE}
+library(dplyr)
+# create new variable to store combined events
+storm$EVTYPE_comb <- storm$EVTYPE
+# all heat related events shoul be combined
+evt_heat <- droplevels(unique(storm$EVTYPE_comb[grepl("HEAT", storm$EVTYPE_comb)]))
+table(droplevels(storm$EVTYPE[which(storm$EVTYPE %in% evt_heat)]))
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_heat)] <- "HEAT"
+table(droplevels(storm$EVTYPE_comb[grepl("HEAT", storm$EVTYPE_comb)]))
+
+# combine other events
+# hurricane
+evt_hurr <- droplevels(unique(storm$EVTYPE_comb[grepl("HURRICANE", storm$EVTYPE_comb)]))
+evt_hurr
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_hurr)] <- "HURRICANE"
+table(droplevels(storm$EVTYPE_comb[grepl("HURRICANE", storm$EVTYPE_comb)]))
+# flood
+evt_flood <- droplevels(unique(storm$EVTYPE_comb[grepl("FLOOD|FLD", storm$EVTYPE_comb)]))
+evt_flood
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_flood)] <- "FLOOD"
+table(droplevels(storm$EVTYPE_comb[grepl("FLOOD", storm$EVTYPE_comb)]))
+# wildfire
+evt_fire <- droplevels(unique(storm$EVTYPE_comb[grepl("[Ff][Ii][Rr][Ee]", storm$EVTYPE_comb)]))
+evt_fire
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_fire)] <- "WILDFIRE"
+table(droplevels(storm$EVTYPE_comb[grepl("WILDFIRE", storm$EVTYPE_comb)]))
+# thunderstorm
+evt_thunderstorm <- droplevels(unique(storm$EVTYPE_comb[grepl("THUNDERSTORM", storm$EVTYPE_comb)]))
+evt_thunderstorm
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_thunderstorm)] <- "THUNDERSTORM"
+table(droplevels(storm$EVTYPE_comb[grepl("THUNDERSTORM", storm$EVTYPE_comb)]))
+# wind
+evt_wind <- droplevels(unique(storm$EVTYPE_comb[grepl("WIND", storm$EVTYPE_comb)]))
+evt_wind
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_wind)] <- "WIND"
+table(droplevels(storm$EVTYPE_comb[grepl("WIND", storm$EVTYPE_comb)]))
+# snow
+evt_snow <- droplevels(unique(storm$EVTYPE_comb[grepl("[Ss][Nn][Oo][Ww]", storm$EVTYPE_comb)]))
+evt_snow
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_snow)] <- "SNOW"
+table(droplevels(storm$EVTYPE_comb[grepl("SNOW", storm$EVTYPE_comb)]))
+# hail
+evt_hail <- droplevels(unique(storm$EVTYPE_comb[grepl("[Hh][Aa][Ii][Ll]", storm$EVTYPE_comb)]))
+evt_hail
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_hail)] <- "HAIL"
+table(droplevels(storm$EVTYPE_comb[grepl("HAIL", storm$EVTYPE_comb)]))
+# rip current
+evt_rip <- droplevels(unique(storm$EVTYPE_comb[grepl("[Rr][Ii][Pp]", storm$EVTYPE_comb)]))
+evt_rip
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_rip)] <- "RIP CURRENT"
+table(droplevels(storm$EVTYPE_comb[grepl("RIP CURRENT", storm$EVTYPE_comb)]))
+# winter storm
+evt_winter <- droplevels(unique(storm$EVTYPE_comb[grepl("[Ww][Ii][Nn][Tt][Ee][Rr]|ICE|BLIZZARD|SNOW", storm$EVTYPE_comb)]))
+evt_winter
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_winter)] <- "WINTER STORM"
+table(droplevels(storm$EVTYPE_comb[grepl("WINTER STORM", storm$EVTYPE_comb)]))
+# tornado
+evt_tornado <- droplevels(unique(storm$EVTYPE_comb[grepl("[Ff][Uu][Nn][Nn][Ee][Ll]|TORNADO", storm$EVTYPE_comb)]))
+evt_tornado
+storm$EVTYPE_comb[which(storm$EVTYPE_comb %in% evt_tornado)] <- "TORNADO"
+table(droplevels(storm$EVTYPE_comb[grepl("TORNADO", storm$EVTYPE_comb)]))
+
+storm %>% 
+        group_by(EVTYPE_comb) %>% 
+        summarise(n = n()) %>% 
+        arrange(desc(n)) %>% 
+        slice(1:10)
+```
+
+
+## Results
+
+### Population Health
+
+View top events with respect to harm to population health. We are interested in the FATALITIES and INJURIES columns for determining an events affect on health. Here are tables of the two column's values.
+
+```{r fatal-inj-dsitributions}
+# look at distributions of deaths and injuries
+
+table(storm$FATALITIES)
+table(storm$INJURIES)
+```
+
+The vast majority of events result in no deaths or injuries. Since we are interseted in events that are damaging to the population health, we will filter for events which resulted in a fatality. We also filter for events which have occured over 10 times as there are numerous one-off EVTYPE classes that have a very high average number of fatalities.
 
 ```{r worst_events}
 library(dplyr)
-worst_events <- storm %>% 
-        group_by(EVTYPE) %>% 
+# Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+fatal_storm <- filter(storm, FATALITIES > 0)
+worst_events <- fatal_storm %>% 
+        group_by(EVTYPE_comb) %>% 
         summarise(avg_deaths = mean(FATALITIES, na.rm = TRUE), 
                   max_deaths = max(FATALITIES, na.rm = TRUE),
+                  total_deaths = sum(FATALITIES, na.rm = TRUE),
+                  avg_inj = mean(INJURIES, na.rm = TRUE), 
+                  max_inj = max(INJURIES, na.rm = TRUE),
+                  total_inj = sum(INJURIES, na.rm = TRUE),
                   n = n()) %>%
-        arrange(desc(max_deaths)) %>% 
+        arrange(desc(avg_deaths)) %>% 
+        filter(n > 10) %>% 
         slice(1:10)
 worst_events
 ```
 
-## Results
+```{r plot-worst-events}
+library(reshape2)
+library(ggplot2)
+# melt data to enable a grid faceted plot for the different health outcomes
+worst_melted <- melt(worst_events, id.vars = "EVTYPE_comb", variable.name = "health_outcome")
+ggplot(data = worst_melted, aes(x = EVTYPE_comb, y = value)) + geom_col() + 
+        facet_grid(health_outcome~., scales = "free") + 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+              strip.text.y = element_text(angle = 0)) +
+        ggtitle("Tornadoes Responsible for Most Deaths") +
+        labs(xlab("Type of Storm Event"))
+        
+```
+
+```{r tornado-fatalities}
+tornado_deaths <- filter(worst_events, EVTYPE_comb == "TORNADO")
+tornado_deaths
+tornado_death_perc <- tornado_deaths$total_deaths / sum(storm$FATALITIES)
+tornado_death_perc <- round(tornado_death_perc * 100, 2)
+tornado_death_perc <- paste(tornado_death_perc, "%")
+```
+
+Although heat related events had higher deaths on average the shear number of tornadoes made them responsible for the majority of deaths with `r tornado_death_perc`. 
+
+### Economic Consequences
+
+View top events with respect to economic impact. We are interested in the PROPDMG and CROPDMG columns for determing an events economic effect. Both of these columns also have an accompanying modifier to signify thousands, millions etc. A new variable will be created to contain the actual dollar amount.
+
+```{r view-damage-columns}
+summary(storm$PROPDMG)
+levels(storm$PROPDMGEXP)
+table(storm$PROPDMGEXP)
+table(storm$CROPDMGEXP)
+storm %>% 
+        filter(PROPDMGEXP == "" & PROPDMG > 0) %>% 
+        slice(1:20)
+# most observations with property damage do have modifiers
+
+storm %>% 
+        filter(CROPDMGEXP == "" & CROPDMG > 0) %>% 
+        slice(1:20)
+# most observations with crop damage do have modifiers
+```
+
+```{r new-prop-crop-variables, cache = TRUE}
+# since we are interested in damaging storms we will filter for those that caused damage
+damage_storm <- filter(storm, PROPDMG > 0 | CROPDMG > 0)
+# initialize new columns
+damage_storm$prop.damage.dollars <- 0
+damage_storm$crop.damage.dollars <- 0
+
+# use for loop to calculate dollar values
+for (i in 1:length(damage_storm$STATE__)) {
+        
+        if (damage_storm$PROPDMGEXP[i] %in% c("k", "K")) {
+                damage_storm$prop.damage.dollars[i] <- 
+                        damage_storm$PROPDMG[i] * 1000
+        }
+        else if (damage_storm$PROPDMGEXP[i] %in% c("m", "M")) {
+                damage_storm$prop.damage.dollars[i] <- 
+                        damage_storm$PROPDMG[i] * 1000000
+        }
+        else if (damage_storm$PROPDMGEXP[i] %in% c("b", "B")) {
+                damage_storm$prop.damage.dollars[i] <- 
+                        damage_storm$PROPDMG[i] * 1000000000
+        }
+        else {
+                damage_storm$prop.damage.dollars[i] <- damage_storm$PROPDMG[i]
+        }
+}
+
+for (i in 1:length(damage_storm$STATE__)) {
+        
+        if (damage_storm$CROPDMGEXP[i] %in% c("k", "K")) {
+                damage_storm$crop.damage.dollars[i] <- 
+                        damage_storm$CROPDMG[i] * 1000
+        }
+        else if (damage_storm$CROPDMGEXP[i] %in% c("m", "M")) {
+                damage_storm$crop.damage.dollars[i] <- 
+                        damage_storm$CROPDMG[i] * 1000000
+        }
+        else if (damage_storm$CROPDMGEXP[i] %in% c("b", "B")) {
+                damage_storm$crop.damage.dollars[i] <- 
+                        damage_storm$CROPDMG[i] * 1000000000
+        }
+        else {
+                damage_storm$crop.damage.dollars[i] <- damage_storm$CROPDMG[i]
+        }
+}
+
+```
+
+```{r damage-df}
+# create a new data frame with total damage and event type
+total_damage <- damage_storm %>% 
+        mutate(total.damage.dollars = prop.damage.dollars + crop.damage.dollars) %>% 
+        select(EVTYPE_comb, total.damage.dollars)
+```
+
+```{r plot-damage}
+plot_damage <- total_damage %>% 
+        group_by(EVTYPE_comb) %>% 
+        summarise(total.damage = sum(total.damage.dollars), n = n()) %>% 
+        arrange(desc(total.damage)) %>% 
+        slice(1:10)
+
+ggplot(data = plot_damage, aes(x = EVTYPE_comb, y = total.damage, fill = n)) +
+        geom_col() + 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+              strip.text.y = element_text(angle = 0)) +
+        ggtitle("Flooding Responsible for Most Damage") +
+        labs(xlab("Type of Storm Event"))
+```
+
+Floods are responsible for the most damage overall, however there are many more floods than hurricanes. We will also compare average damage per event.
+
+```{r plot-average-damage}
+# add average damage per events as a column
+plot_damage <- mutate(plot_damage, avg.damage = total.damage / n)
+
+ggplot(data = plot_damage, aes(x = EVTYPE_comb, y = avg.damage)) +
+        geom_col() + 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+              strip.text.y = element_text(angle = 0)) +
+        ggtitle("Hurricanes Have Highest Average Damage") +
+        labs(xlab("Type of Storm Event"))
+```
+
+```{r calc-hurricane-damage-dollars}
+avg_hurricane_dmg <- plot_damage[which(plot_damage$EVTYPE_comb == "HURRICANE"), 4]
+avg_hurricane_dmg <- paste0("$", round(avg_hurricane_dmg / 1000000, 2), " Million")
+```
 
 
+When looking at average damage, hurricanes become the most significant storm event with `r avg_hurricane_dmg` in damage per storm. Floods actaully do relatively little damage on average, so as with the health effects, it is the large number of them that makes them the most damaging event overall. 
